@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Walkcycle Sprite Sheet Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Walkcycle Sprite Sheet Generator</h1>
+    <p class="subtitle">Front-view T-pose &rarr; 8-direction sheet with idle / walk / attack</p>
+    <button id="open-settings" class="ghost" type="button">Settings</button>
+  </header>
+
+  <main class="app-main">
+    <section class="panel upload-panel">
+      <h2>1. Upload character</h2>
+      <div id="dropzone" class="dropzone" tabindex="0">
+        <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" hidden />
+        <div class="dropzone-empty" id="dropzone-empty">
+          <p><strong>Drop a PNG / JPG / WEBP here</strong></p>
+          <p class="hint">or click to choose &mdash; front view, T-pose, transparent or plain background</p>
+        </div>
+        <img id="upload-preview" class="upload-preview" alt="Uploaded character preview" hidden />
+      </div>
+
+      <div class="options">
+        <label>
+          <span>Frame size</span>
+          <select id="frame-size">
+            <option value="32">32 &times; 32</option>
+            <option value="64" selected>64 &times; 64</option>
+            <option value="128">128 &times; 128</option>
+          </select>
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="pixel-snap" checked />
+          <span>Pixel snap (downsample to grid)</span>
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="color-key" checked />
+          <span>Color-key transparency (magenta &rarr; alpha)</span>
+        </label>
+      </div>
+
+      <fieldset class="anim-toggles">
+        <legend>Animations</legend>
+        <label class="checkbox"><input type="checkbox" data-anim="idle" checked /><span>Idle (4 frames)</span></label>
+        <label class="checkbox"><input type="checkbox" data-anim="walk" checked /><span>Walk (8 frames)</span></label>
+        <label class="checkbox"><input type="checkbox" data-anim="attack" checked /><span>Attack (4 frames)</span></label>
+      </fieldset>
+
+      <button id="generate-btn" class="primary" type="button" disabled>Generate sprite sheet</button>
+    </section>
+
+    <section class="panel progress-panel" id="progress-panel" hidden>
+      <h2>2. Generating</h2>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <p class="progress-status" id="progress-status">Idle</p>
+      <ul class="progress-log" id="progress-log"></ul>
+    </section>
+
+    <section class="panel preview-panel" id="preview-panel" hidden>
+      <h2>3. Preview</h2>
+      <p class="hint">Click any frame to regenerate it. Reference poses are shown in the first row of each direction group.</p>
+      <div class="preview-grid" id="preview-grid"></div>
+    </section>
+
+    <section class="panel export-panel" id="export-panel" hidden>
+      <h2>4. Export</h2>
+      <canvas id="sheet-canvas"></canvas>
+      <div class="export-actions">
+        <button id="download-png" class="primary" type="button">Download PNG</button>
+        <button id="download-json" class="primary" type="button">Download JSON</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="settings-dialog" class="settings-dialog">
+    <form method="dialog">
+      <h2>Settings</h2>
+      <label>
+        <span>Gemini API key</span>
+        <input type="password" id="api-key" placeholder="AIza..." autocomplete="off" />
+        <small>
+          Get one free from
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+          Stored in your browser's localStorage; sent directly to Google.
+        </small>
+      </label>
+      <label>
+        <span>Throttle (ms between API calls)</span>
+        <input type="number" id="throttle-ms" min="0" step="500" value="6500" />
+        <small>Free tier is ~10 RPM. Lower this only if you have a paid quota.</small>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="dry-run" />
+        <span>Dry-run (skip API, use placeholder images)</span>
+      </label>
+      <menu>
+        <button type="button" id="settings-save" class="primary">Save</button>
+        <button type="button" id="settings-cancel" class="ghost">Cancel</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
