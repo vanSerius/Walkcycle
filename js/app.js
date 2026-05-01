@@ -1,4 +1,4 @@
-import { loadSettings, saveSettings, MODEL_PRESETS } from "./settings.js";
+import { loadSettings, saveSettings } from "./settings.js";
 import { Pipeline } from "./pipeline.js";
 import { DIRECTIONS, ANIMATIONS } from "./prompts.js";
 import { splitFilmstrip, processReferenceImage } from "./frame-splitter.js";
@@ -28,7 +28,6 @@ const els = {
   settingsDialog: document.getElementById("settings-dialog"),
   apiKey: document.getElementById("api-key"),
   modelName: document.getElementById("model-name"),
-  modelPresets: document.getElementById("model-presets"),
   throttleMs: document.getElementById("throttle-ms"),
   dryRun: document.getElementById("dry-run"),
   settingsSave: document.getElementById("settings-save"),
@@ -130,13 +129,6 @@ function setupSettings() {
     });
     els.settingsDialog.close();
   });
-
-  for (const preset of MODEL_PRESETS) {
-    const opt = document.createElement("option");
-    opt.value = preset.value;
-    opt.label = preset.label;
-    els.modelPresets.appendChild(opt);
-  }
 }
 
 function setupOptions() {

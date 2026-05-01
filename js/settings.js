@@ -11,12 +11,6 @@ const DEFAULTS = {
   enabledAnimations: { idle: true, walk: true, attack: true },
 };
 
-export const MODEL_PRESETS = [
-  { value: "gemini-2.5-flash-image", label: "gemini-2.5-flash-image (Nano Banana, default)" },
-  { value: "gemini-2.5-flash-image-preview", label: "gemini-2.5-flash-image-preview (separate quota bucket)" },
-  { value: "gemini-3-pro-image", label: "gemini-3-pro-image (Nano Banana Pro, paid only)" },
-];
-
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
