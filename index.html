@@ -42,7 +42,13 @@
           <input type="checkbox" id="color-key" checked />
           <span>Color-key transparency (magenta &rarr; alpha)</span>
         </label>
+        <label class="checkbox" title="Saves 8 API calls. Uses your upload directly as reference for all directions.">
+          <input type="checkbox" id="skip-reference-stage" />
+          <span>Skip reference-pose stage (low-quota mode)</span>
+        </label>
       </div>
+
+      <p id="call-estimate" class="hint"></p>
 
       <fieldset class="anim-toggles">
         <legend>Animations</legend>

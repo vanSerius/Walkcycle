@@ -6,12 +6,13 @@ const MAX_RETRIES = 2;
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-function totalCalls(animationKeys) {
-  return DIRECTIONS.length + DIRECTIONS.length * animationKeys.length;
+export function estimateCalls({ directions = DIRECTIONS.length, animationKeys, skipReferenceStage = false }) {
+  const refs = skipReferenceStage ? 0 : directions;
+  return refs + directions * animationKeys.length;
 }
 
 export class Pipeline {
-  constructor({ apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, refMaxDim = 384, onProgress }) {
+  constructor({ apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, refMaxDim = 384, skipReferenceStage = false, onProgress }) {
     this.apiKey = apiKey;
     this.model = model;
     this.throttleMs = throttleMs;
@@ -19,9 +20,10 @@ export class Pipeline {
     this.frameSize = frameSize;
     this.animationKeys = animationKeys;
     this.refMaxDim = refMaxDim;
+    this.skipReferenceStage = skipReferenceStage;
     this.onProgress = onProgress ?? (() => {});
     this.completed = 0;
-    this.total = totalCalls(animationKeys);
+    this.total = estimateCalls({ animationKeys, skipReferenceStage });
     this.lastCallAt = 0;
     this.references = {}; // direction.key -> dataUrl
     this.filmstrips = {}; // direction.key -> animKey -> dataUrl
@@ -69,21 +71,23 @@ export class Pipeline {
   async run(uploadDataUrl) {
     this._emit("start", {});
 
-    for (const direction of DIRECTIONS) {
-      const label = `ref:${direction.key}`;
-      try {
-        this._emit("step", { label, message: `Reference pose ${direction.key}` });
-        const out = await this._call(
-          referencePosePrompt(direction),
-          [uploadDataUrl],
-          { label }
-        );
-        this.references[direction.key] = out;
-        this.completed++;
-        this._emit("ok", { label, dataUrl: out });
-      } catch (err) {
-        this.completed++;
-        this._emit("err", { label, message: err.message });
+    if (!this.skipReferenceStage) {
+      for (const direction of DIRECTIONS) {
+        const label = `ref:${direction.key}`;
+        try {
+          this._emit("step", { label, message: `Reference pose ${direction.key}` });
+          const out = await this._call(
+            referencePosePrompt(direction),
+            [uploadDataUrl],
+            { label }
+          );
+          this.references[direction.key] = out;
+          this.completed++;
+          this._emit("ok", { label, dataUrl: out });
+        } catch (err) {
+          this.completed++;
+          this._emit("err", { label, message: err.message });
+        }
       }
     }
 

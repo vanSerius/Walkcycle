@@ -9,6 +9,7 @@ const DEFAULTS = {
   frameSize: 64,
   pixelSnap: true,
   colorKey: true,
+  skipReferenceStage: false,
   enabledAnimations: { idle: true, walk: true, attack: true },
 };
 

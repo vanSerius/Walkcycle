@@ -1,5 +1,5 @@
 import { loadSettings, saveSettings } from "./settings.js";
-import { Pipeline } from "./pipeline.js";
+import { Pipeline, estimateCalls } from "./pipeline.js";
 import { DIRECTIONS, ANIMATIONS } from "./prompts.js";
 import { splitFilmstrip, processReferenceImage } from "./frame-splitter.js";
 import { composeSheet, canvasToBlob, downloadBlob } from "./sprite-sheet.js";
@@ -12,6 +12,8 @@ const els = {
   frameSize: document.getElementById("frame-size"),
   pixelSnap: document.getElementById("pixel-snap"),
   colorKey: document.getElementById("color-key"),
+  skipReferenceStage: document.getElementById("skip-reference-stage"),
+  callEstimate: document.getElementById("call-estimate"),
   animToggles: document.querySelectorAll('.anim-toggles input[data-anim]'),
   generateBtn: document.getElementById("generate-btn"),
   progressPanel: document.getElementById("progress-panel"),
@@ -58,6 +60,7 @@ function applySettingsToUI() {
   els.frameSize.value = String(state.settings.frameSize);
   els.pixelSnap.checked = state.settings.pixelSnap;
   els.colorKey.checked = state.settings.colorKey;
+  els.skipReferenceStage.checked = state.settings.skipReferenceStage;
   for (const cb of els.animToggles) {
     const key = cb.dataset.anim;
     if (state.settings.enabledAnimations[key] !== undefined) {
@@ -73,8 +76,23 @@ function persistOptions() {
     frameSize: Number(els.frameSize.value),
     pixelSnap: els.pixelSnap.checked,
     colorKey: els.colorKey.checked,
+    skipReferenceStage: els.skipReferenceStage.checked,
     enabledAnimations: enabled,
   });
+}
+
+function updateCallEstimate() {
+  const animationKeys = getAnimationKeys();
+  const skip = els.skipReferenceStage.checked;
+  const calls = estimateCalls({ animationKeys, skipReferenceStage: skip });
+  const refCalls = skip ? 0 : 8;
+  const filmstripCalls = 8 * animationKeys.length;
+  const fits = calls <= 20 ? "fits in 20-RPD free tier" : "exceeds 20-RPD free tier";
+  els.callEstimate.textContent =
+    animationKeys.length === 0
+      ? "Pick at least one animation."
+      : `~${calls} API calls (${refCalls} ref + ${filmstripCalls} filmstrip) — ${fits}.`;
+  els.callEstimate.style.color = calls <= 20 ? "var(--good)" : "var(--bad)";
 }
 
 function setGenerateEnabled() {
@@ -138,8 +156,16 @@ function setupOptions() {
   els.frameSize.addEventListener("change", persistOptions);
   els.pixelSnap.addEventListener("change", persistOptions);
   els.colorKey.addEventListener("change", persistOptions);
+  els.skipReferenceStage.addEventListener("change", () => {
+    persistOptions();
+    updateCallEstimate();
+  });
   for (const cb of els.animToggles) {
-    cb.addEventListener("change", () => { persistOptions(); setGenerateEnabled(); });
+    cb.addEventListener("change", () => {
+      persistOptions();
+      setGenerateEnabled();
+      updateCallEstimate();
+    });
   }
 }
 
@@ -157,7 +183,7 @@ function setProgress(completed, total) {
   els.progressStatus.textContent = `${completed} / ${total} (${pct}%)`;
 }
 
-function ensurePreviewSkeleton(animationKeys) {
+function ensurePreviewSkeleton(animationKeys, includeReference) {
   els.previewGrid.innerHTML = "";
 
   const corner = document.createElement("div");
@@ -165,10 +191,12 @@ function ensurePreviewSkeleton(animationKeys) {
   corner.textContent = "Direction";
   els.previewGrid.appendChild(corner);
 
-  const refHeader = document.createElement("div");
-  refHeader.className = "preview-col-label";
-  refHeader.textContent = "Reference";
-  els.previewGrid.appendChild(refHeader);
+  if (includeReference) {
+    const refHeader = document.createElement("div");
+    refHeader.className = "preview-col-label";
+    refHeader.textContent = "Reference";
+    els.previewGrid.appendChild(refHeader);
+  }
 
   for (const animKey of animationKeys) {
     const h = document.createElement("div");
@@ -177,7 +205,8 @@ function ensurePreviewSkeleton(animationKeys) {
     els.previewGrid.appendChild(h);
   }
 
-  els.previewGrid.style.gridTemplateColumns = `120px ${"1fr ".repeat(1 + animationKeys.length).trim()}`;
+  const cols = (includeReference ? 1 : 0) + animationKeys.length;
+  els.previewGrid.style.gridTemplateColumns = `120px ${"1fr ".repeat(cols).trim()}`;
 
   for (const dir of DIRECTIONS) {
     const rowLabel = document.createElement("div");
@@ -185,8 +214,10 @@ function ensurePreviewSkeleton(animationKeys) {
     rowLabel.textContent = dir.key;
     els.previewGrid.appendChild(rowLabel);
 
-    const refCell = createCell({ label: `ref:${dir.key}`, kind: "ref", direction: dir.key });
-    els.previewGrid.appendChild(refCell);
+    if (includeReference) {
+      const refCell = createCell({ label: `ref:${dir.key}`, kind: "ref", direction: dir.key });
+      els.previewGrid.appendChild(refCell);
+    }
 
     for (const animKey of animationKeys) {
       const cell = createCell({ label: `${dir.key}:${animKey}`, kind: "filmstrip", direction: dir.key, animation: animKey });
@@ -316,7 +347,8 @@ async function runGeneration() {
   els.progressLog.innerHTML = "";
   state.references = {};
   state.filmstrips = {};
-  ensurePreviewSkeleton(animationKeys);
+  const skipReferenceStage = els.skipReferenceStage.checked;
+  ensurePreviewSkeleton(animationKeys, !skipReferenceStage);
 
   state.pipeline = new Pipeline({
     apiKey: state.settings.apiKey,
@@ -326,6 +358,7 @@ async function runGeneration() {
     dryRun: state.settings.dryRun,
     frameSize: Number(els.frameSize.value),
     animationKeys,
+    skipReferenceStage,
     onProgress: (event) => {
       setProgress(event.completed, event.total);
       if (event.type === "step") {
@@ -381,6 +414,7 @@ function init() {
   setupExport();
   els.generateBtn.addEventListener("click", runGeneration);
   setGenerateEnabled();
+  updateCallEstimate();
 }
 
 init();
