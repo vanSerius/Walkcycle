@@ -89,6 +89,17 @@
     <form method="dialog">
       <h2>Settings</h2>
       <label>
+        <span>Provider</span>
+        <select id="provider">
+          <option value="gemini-direct">Gemini API (your own key — strict free-tier quota)</option>
+          <option value="puter">Puter.js (free, no key — user signs in to Puter)</option>
+        </select>
+        <small>
+          Puter.js bundles Nano Banana access without an API key. First request prompts the
+          user to sign in / create a free Puter account. <a href="https://developer.puter.com/tutorials/free-unlimited-nano-banana-api/" target="_blank" rel="noopener">More info</a>.
+        </small>
+      </label>
+      <label id="api-key-field">
         <span>Gemini API key</span>
         <input type="password" id="api-key" placeholder="AIza..." autocomplete="off" />
         <small>

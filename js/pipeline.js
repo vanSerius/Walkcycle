@@ -1,5 +1,6 @@
 import { DIRECTIONS, ANIMATIONS, referencePosePrompt, filmstripPrompt } from "./prompts.js";
-import { generateImage, GeminiError } from "./gemini.js";
+import { generateImage as geminiGenerate, GeminiError } from "./gemini.js";
+import { generateImage as puterGenerate, PuterError } from "./puter.js";
 import { downsampleDataUrl } from "./pixel-utils.js";
 
 const MAX_RETRIES = 2;
@@ -12,7 +13,8 @@ export function estimateCalls({ directions = DIRECTIONS.length, animationKeys, s
 }
 
 export class Pipeline {
-  constructor({ apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, refMaxDim = 384, skipReferenceStage = false, onProgress }) {
+  constructor({ provider = "gemini-direct", apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, refMaxDim = 384, skipReferenceStage = false, onProgress }) {
+    this.provider = provider;
     this.apiKey = apiKey;
     this.model = model;
     this.throttleMs = throttleMs;
@@ -56,9 +58,12 @@ export class Pipeline {
     let attempt = 0;
     while (true) {
       try {
-        return await generateImage({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });
+        if (this.provider === "puter") {
+          return await puterGenerate({ model: this.model, prompt, referenceImages: slimRefs });
+        }
+        return await geminiGenerate({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });
       } catch (err) {
-        const retriable = err instanceof GeminiError && err.retriable;
+        const retriable = (err instanceof GeminiError && err.retriable) || (err instanceof PuterError && err.retriable);
         if (!retriable || attempt >= MAX_RETRIES) throw err;
         const backoff = 2000 * Math.pow(2, attempt);
         this._emit("retry", { label, attempt: attempt + 1, message: err.message, waitMs: backoff });

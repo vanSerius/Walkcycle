@@ -28,6 +28,8 @@ const els = {
   downloadJson: document.getElementById("download-json"),
   openSettings: document.getElementById("open-settings"),
   settingsDialog: document.getElementById("settings-dialog"),
+  provider: document.getElementById("provider"),
+  apiKeyField: document.getElementById("api-key-field"),
   apiKey: document.getElementById("api-key"),
   modelName: document.getElementById("model-name"),
   throttleMs: document.getElementById("throttle-ms"),
@@ -52,8 +54,10 @@ function getAnimationKeys() {
 }
 
 function applySettingsToUI() {
+  els.provider.value = state.settings.provider;
   els.apiKey.value = state.settings.apiKey;
   els.modelName.value = state.settings.modelName;
+  updateProviderUI();
   els.throttleMs.value = state.settings.throttleMs;
   els.refMaxDim.value = state.settings.refMaxDim;
   els.dryRun.checked = state.settings.dryRun;
@@ -142,6 +146,7 @@ function setupSettings() {
   els.settingsSave.addEventListener("click", () => {
     const model = els.modelName.value.trim() || "gemini-2.5-flash-image";
     state.settings = saveSettings({
+      provider: els.provider.value,
       apiKey: els.apiKey.value.trim(),
       modelName: model,
       throttleMs: Math.max(0, Number(els.throttleMs.value) || 0),
@@ -150,6 +155,13 @@ function setupSettings() {
     });
     els.settingsDialog.close();
   });
+
+  els.provider.addEventListener("change", updateProviderUI);
+}
+
+function updateProviderUI() {
+  const provider = els.provider.value;
+  els.apiKeyField.style.display = provider === "gemini-direct" ? "" : "none";
 }
 
 function setupOptions() {
@@ -335,8 +347,8 @@ async function runGeneration() {
   const animationKeys = getAnimationKeys();
   if (animationKeys.length === 0) return;
 
-  if (!state.settings.apiKey && !state.settings.dryRun) {
-    alert("Please set your Gemini API key in Settings (or enable Dry-run).");
+  if (state.settings.provider === "gemini-direct" && !state.settings.apiKey && !state.settings.dryRun) {
+    alert("Please set your Gemini API key in Settings (or switch provider to Puter.js, or enable Dry-run).");
     els.openSettings.click();
     return;
   }
@@ -351,6 +363,7 @@ async function runGeneration() {
   ensurePreviewSkeleton(animationKeys, !skipReferenceStage);
 
   state.pipeline = new Pipeline({
+    provider: state.settings.provider,
     apiKey: state.settings.apiKey,
     model: state.settings.modelName,
     throttleMs: state.settings.throttleMs,
