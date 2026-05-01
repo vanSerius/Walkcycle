@@ -4,6 +4,7 @@ const DEFAULTS = {
   apiKey: "",
   modelName: "gemini-2.5-flash-image",
   throttleMs: 6500,
+  refMaxDim: 384,
   dryRun: false,
   frameSize: 64,
   pixelSnap: true,

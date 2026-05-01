@@ -80,3 +80,24 @@ export function trimToSquare(canvas) {
   ctx.drawImage(canvas, sx, sy, size, size, 0, 0, size, size);
   return out;
 }
+
+export async function downsampleDataUrl(dataUrl, maxDim, mimeType = "image/png") {
+  if (!maxDim || maxDim <= 0) return dataUrl;
+  const img = await loadImage(dataUrl);
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const longest = Math.max(w, h);
+  if (longest <= maxDim) return dataUrl;
+
+  const scale = maxDim / longest;
+  const tw = Math.max(1, Math.round(w * scale));
+  const th = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, tw, th);
+  return canvas.toDataURL(mimeType);
+}

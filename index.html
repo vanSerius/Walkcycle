@@ -107,6 +107,14 @@
         <input type="number" id="throttle-ms" min="0" step="500" value="6500" />
         <small>Free tier is ~10 RPM. Lower this only if you have a paid quota.</small>
       </label>
+      <label>
+        <span>Reference image max size (px)</span>
+        <input type="number" id="ref-max-dim" min="128" max="1024" step="64" value="384" />
+        <small>
+          Reference images are downscaled to this longest edge before being sent.
+          Smaller = fewer input tokens. 384 = ~258 tokens per image (1 tile). Set 0 to disable.
+        </small>
+      </label>
       <label class="checkbox">
         <input type="checkbox" id="dry-run" />
         <span>Dry-run (skip API, use placeholder images)</span>

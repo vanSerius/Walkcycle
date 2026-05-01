@@ -1,5 +1,6 @@
 import { DIRECTIONS, ANIMATIONS, referencePosePrompt, filmstripPrompt } from "./prompts.js";
 import { generateImage, GeminiError } from "./gemini.js";
+import { downsampleDataUrl } from "./pixel-utils.js";
 
 const MAX_RETRIES = 2;
 
@@ -10,13 +11,14 @@ function totalCalls(animationKeys) {
 }
 
 export class Pipeline {
-  constructor({ apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, onProgress }) {
+  constructor({ apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, refMaxDim = 384, onProgress }) {
     this.apiKey = apiKey;
     this.model = model;
     this.throttleMs = throttleMs;
     this.dryRun = dryRun;
     this.frameSize = frameSize;
     this.animationKeys = animationKeys;
+    this.refMaxDim = refMaxDim;
     this.onProgress = onProgress ?? (() => {});
     this.completed = 0;
     this.total = totalCalls(animationKeys);
@@ -45,11 +47,14 @@ export class Pipeline {
       await sleep(120);
       return placeholderDataUrl(label);
     }
+    const slimRefs = await Promise.all(
+      referenceImages.map((r) => downsampleDataUrl(r, this.refMaxDim))
+    );
     await this._throttle();
     let attempt = 0;
     while (true) {
       try {
-        return await generateImage({ apiKey: this.apiKey, model: this.model, prompt, referenceImages });
+        return await generateImage({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });
       } catch (err) {
         const retriable = err instanceof GeminiError && err.retriable;
         if (!retriable || attempt >= MAX_RETRIES) throw err;

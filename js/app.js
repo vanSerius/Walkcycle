@@ -29,6 +29,7 @@ const els = {
   apiKey: document.getElementById("api-key"),
   modelName: document.getElementById("model-name"),
   throttleMs: document.getElementById("throttle-ms"),
+  refMaxDim: document.getElementById("ref-max-dim"),
   dryRun: document.getElementById("dry-run"),
   settingsSave: document.getElementById("settings-save"),
   settingsCancel: document.getElementById("settings-cancel"),
@@ -52,6 +53,7 @@ function applySettingsToUI() {
   els.apiKey.value = state.settings.apiKey;
   els.modelName.value = state.settings.modelName;
   els.throttleMs.value = state.settings.throttleMs;
+  els.refMaxDim.value = state.settings.refMaxDim;
   els.dryRun.checked = state.settings.dryRun;
   els.frameSize.value = String(state.settings.frameSize);
   els.pixelSnap.checked = state.settings.pixelSnap;
@@ -125,6 +127,7 @@ function setupSettings() {
       apiKey: els.apiKey.value.trim(),
       modelName: model,
       throttleMs: Math.max(0, Number(els.throttleMs.value) || 0),
+      refMaxDim: Math.max(0, Number(els.refMaxDim.value) || 0),
       dryRun: els.dryRun.checked,
     });
     els.settingsDialog.close();
@@ -319,6 +322,7 @@ async function runGeneration() {
     apiKey: state.settings.apiKey,
     model: state.settings.modelName,
     throttleMs: state.settings.throttleMs,
+    refMaxDim: state.settings.refMaxDim,
     dryRun: state.settings.dryRun,
     frameSize: Number(els.frameSize.value),
     animationKeys,
