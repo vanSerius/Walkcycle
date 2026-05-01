@@ -92,6 +92,15 @@
         </small>
       </label>
       <label>
+        <span>Model</span>
+        <input type="text" id="model-name" list="model-presets" placeholder="gemini-2.5-flash-image" autocomplete="off" />
+        <datalist id="model-presets"></datalist>
+        <small>
+          Must be an image-generation model. Plain <code>gemini-2.5-flash</code> is text-only and will fail.
+          Switch to <code>-preview</code> if you hit quota on the default.
+        </small>
+      </label>
+      <label>
         <span>Throttle (ms between API calls)</span>
         <input type="number" id="throttle-ms" min="0" step="500" value="6500" />
         <small>Free tier is ~10 RPM. Lower this only if you have a paid quota.</small>

@@ -10,8 +10,9 @@ function totalCalls(animationKeys) {
 }
 
 export class Pipeline {
-  constructor({ apiKey, throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, onProgress }) {
+  constructor({ apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, onProgress }) {
     this.apiKey = apiKey;
+    this.model = model;
     this.throttleMs = throttleMs;
     this.dryRun = dryRun;
     this.frameSize = frameSize;
@@ -48,7 +49,7 @@ export class Pipeline {
     let attempt = 0;
     while (true) {
       try {
-        return await generateImage({ apiKey: this.apiKey, prompt, referenceImages });
+        return await generateImage({ apiKey: this.apiKey, model: this.model, prompt, referenceImages });
       } catch (err) {
         const retriable = err instanceof GeminiError && err.retriable;
         if (!retriable || attempt >= MAX_RETRIES) throw err;

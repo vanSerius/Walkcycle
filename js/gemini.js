@@ -1,5 +1,4 @@
-const ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
+const ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export class GeminiError extends Error {
   constructor(message, { status, retriable } = {}) {
@@ -16,7 +15,7 @@ function dataUrlToInlineData(dataUrl) {
   return { mimeType: m[1], data: m[2] };
 }
 
-export async function generateImage({ apiKey, prompt, referenceImages = [] }) {
+export async function generateImage({ apiKey, model = "gemini-2.5-flash-image", prompt, referenceImages = [] }) {
   if (!apiKey) throw new GeminiError("API key is missing. Open Settings and paste your key.");
 
   const parts = [{ text: prompt }];
@@ -29,9 +28,10 @@ export async function generateImage({ apiKey, prompt, referenceImages = [] }) {
     generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
   };
 
+  const endpoint = `${ENDPOINT_BASE}/${encodeURIComponent(model)}:generateContent`;
   let response;
   try {
-    response = await fetch(`${ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
+    response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

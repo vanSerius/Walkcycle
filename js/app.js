@@ -1,4 +1,4 @@
-import { loadSettings, saveSettings } from "./settings.js";
+import { loadSettings, saveSettings, MODEL_PRESETS } from "./settings.js";
 import { Pipeline } from "./pipeline.js";
 import { DIRECTIONS, ANIMATIONS } from "./prompts.js";
 import { splitFilmstrip, processReferenceImage } from "./frame-splitter.js";
@@ -27,6 +27,8 @@ const els = {
   openSettings: document.getElementById("open-settings"),
   settingsDialog: document.getElementById("settings-dialog"),
   apiKey: document.getElementById("api-key"),
+  modelName: document.getElementById("model-name"),
+  modelPresets: document.getElementById("model-presets"),
   throttleMs: document.getElementById("throttle-ms"),
   dryRun: document.getElementById("dry-run"),
   settingsSave: document.getElementById("settings-save"),
@@ -49,6 +51,7 @@ function getAnimationKeys() {
 
 function applySettingsToUI() {
   els.apiKey.value = state.settings.apiKey;
+  els.modelName.value = state.settings.modelName;
   els.throttleMs.value = state.settings.throttleMs;
   els.dryRun.checked = state.settings.dryRun;
   els.frameSize.value = String(state.settings.frameSize);
@@ -118,13 +121,22 @@ function setupSettings() {
   });
   els.settingsCancel.addEventListener("click", () => els.settingsDialog.close());
   els.settingsSave.addEventListener("click", () => {
+    const model = els.modelName.value.trim() || "gemini-2.5-flash-image";
     state.settings = saveSettings({
       apiKey: els.apiKey.value.trim(),
+      modelName: model,
       throttleMs: Math.max(0, Number(els.throttleMs.value) || 0),
       dryRun: els.dryRun.checked,
     });
     els.settingsDialog.close();
   });
+
+  for (const preset of MODEL_PRESETS) {
+    const opt = document.createElement("option");
+    opt.value = preset.value;
+    opt.label = preset.label;
+    els.modelPresets.appendChild(opt);
+  }
 }
 
 function setupOptions() {
@@ -313,6 +325,7 @@ async function runGeneration() {
 
   state.pipeline = new Pipeline({
     apiKey: state.settings.apiKey,
+    model: state.settings.modelName,
     throttleMs: state.settings.throttleMs,
     dryRun: state.settings.dryRun,
     frameSize: Number(els.frameSize.value),
