@@ -1,6 +1,7 @@
 import { DIRECTIONS, ANIMATIONS, referencePosePrompt, filmstripPrompt } from "./prompts.js";
 import { generateImage as geminiGenerate, GeminiError } from "./gemini.js";
 import { generateImage as puterGenerate, PuterError } from "./puter.js";
+import { generateImage as hordeGenerate, HordeError } from "./aihorde.js";
 import { downsampleDataUrl } from "./pixel-utils.js";
 import { uploadHash, cacheGet, cacheSet } from "./cache.js";
 
@@ -14,9 +15,10 @@ export function estimateCalls({ directions = DIRECTIONS.length, animationKeys, s
 }
 
 export class Pipeline {
-  constructor({ provider = "gemini-direct", apiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, refMaxDim = 384, skipReferenceStage = false, onProgress }) {
+  constructor({ provider = "gemini-direct", apiKey, aihordeApiKey, model = "gemini-2.5-flash-image", throttleMs = 6500, dryRun = false, frameSize = 64, animationKeys, refMaxDim = 384, skipReferenceStage = false, onProgress }) {
     this.provider = provider;
     this.apiKey = apiKey;
+    this.aihordeApiKey = aihordeApiKey;
     this.model = model;
     this.throttleMs = throttleMs;
     this.dryRun = dryRun;
@@ -70,13 +72,29 @@ export class Pipeline {
     let attempt = 0;
     while (true) {
       try {
-        const out = this.provider === "puter"
-          ? await puterGenerate({ model: this.model, prompt, referenceImages: slimRefs })
-          : await geminiGenerate({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });
+        let out;
+        if (this.provider === "puter") {
+          out = await puterGenerate({ model: this.model, prompt, referenceImages: slimRefs });
+        } else if (this.provider === "aihorde") {
+          out = await hordeGenerate({
+            apiKey: this.aihordeApiKey,
+            model: this.model,
+            prompt,
+            referenceImages: slimRefs,
+            width: 512,
+            height: 512,
+            onPoll: (info) => this._emit("polling", { label, ...info }),
+          });
+        } else {
+          out = await geminiGenerate({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });
+        }
         if (this.uploadHashId) cacheSet(this.uploadHashId, label, out);
         return out;
       } catch (err) {
-        const retriable = (err instanceof GeminiError && err.retriable) || (err instanceof PuterError && err.retriable);
+        const retriable =
+          (err instanceof GeminiError && err.retriable) ||
+          (err instanceof PuterError && err.retriable) ||
+          (err instanceof HordeError && err.retriable);
         if (!retriable || attempt >= MAX_RETRIES) throw err;
         const backoff = 2000 * Math.pow(2, attempt);
         this._emit("retry", { label, attempt: attempt + 1, message: err.message, waitMs: backoff });

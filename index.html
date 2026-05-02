@@ -97,11 +97,12 @@
         <span>Provider</span>
         <select id="provider">
           <option value="gemini-direct">Gemini API (your own key — strict free-tier quota)</option>
-          <option value="puter">Puter.js (free, no key — user signs in to Puter)</option>
+          <option value="puter">Puter.js (free credits, signs in to Puter on first call)</option>
+          <option value="aihorde">AI Horde (truly free, crowdsourced, slow queues)</option>
         </select>
         <small>
-          Puter.js bundles Nano Banana access without an API key. First request prompts the
-          user to sign in / create a free Puter account. <a href="https://developer.puter.com/tutorials/free-unlimited-nano-banana-api/" target="_blank" rel="noopener">More info</a>.
+          AI Horde is fully free with no quota but each image takes 10–90 s while waiting for a
+          volunteer worker. Quality varies. <a href="https://aihorde.net/" target="_blank" rel="noopener">aihorde.net</a>
         </small>
       </label>
       <label id="api-key-field">
@@ -113,15 +114,23 @@
           Stored in your browser's localStorage; sent directly to Google.
         </small>
       </label>
+      <label id="aihorde-key-field" hidden>
+        <span>AI Horde API key (optional)</span>
+        <input type="password" id="aihorde-api-key" placeholder="leave blank for anonymous (longer queues)" autocomplete="off" />
+        <small>
+          Anonymous works, but signing up at
+          <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>
+          gives you free starter Kudos and shorter wait times.
+        </small>
+      </label>
       <label>
         <span>Model</span>
         <input type="text" id="model-name" placeholder="gemini-2.5-flash-image" autocomplete="off" spellcheck="false" />
-        <small>
-          Free text. Must be an image-generation model. Examples:
+        <small id="model-help">
+          Free text. Must be an image-generation model. Gemini examples:
           <code>gemini-2.5-flash-image</code>,
-          <code>gemini-2.5-flash-image-preview</code>,
-          <code>gemini-3-pro-image</code>.
-          Plain <code>gemini-2.5-flash</code> is text-only and will fail.
+          <code>gemini-2.5-flash-image-preview</code>.
+          AI Horde examples: <code>stable_diffusion</code>, <code>AlbedoBase XL</code>, <code>Deliberate</code>.
         </small>
       </label>
       <label>

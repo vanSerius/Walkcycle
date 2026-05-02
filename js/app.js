@@ -35,6 +35,8 @@ const els = {
   provider: document.getElementById("provider"),
   apiKeyField: document.getElementById("api-key-field"),
   apiKey: document.getElementById("api-key"),
+  aihordeKeyField: document.getElementById("aihorde-key-field"),
+  aihordeApiKey: document.getElementById("aihorde-api-key"),
   modelName: document.getElementById("model-name"),
   throttleMs: document.getElementById("throttle-ms"),
   refMaxDim: document.getElementById("ref-max-dim"),
@@ -76,6 +78,7 @@ function getAnimationKeys() {
 function applySettingsToUI() {
   els.provider.value = state.settings.provider;
   els.apiKey.value = state.settings.apiKey;
+  els.aihordeApiKey.value = state.settings.aihordeApiKey;
   els.modelName.value = state.settings.modelName;
   updateProviderUI();
   els.throttleMs.value = state.settings.throttleMs;
@@ -170,6 +173,7 @@ function setupSettings() {
     state.settings = saveSettings({
       provider: els.provider.value,
       apiKey: els.apiKey.value.trim(),
+      aihordeApiKey: els.aihordeApiKey.value.trim(),
       modelName: model,
       throttleMs: Math.max(0, Number(els.throttleMs.value) || 0),
       refMaxDim: Math.max(0, Number(els.refMaxDim.value) || 0),
@@ -183,7 +187,8 @@ function setupSettings() {
 
 function updateProviderUI() {
   const provider = els.provider.value;
-  els.apiKeyField.style.display = provider === "gemini-direct" ? "" : "none";
+  els.apiKeyField.hidden = provider !== "gemini-direct";
+  els.aihordeKeyField.hidden = provider !== "aihorde";
 }
 
 function setupOptions() {
@@ -387,6 +392,7 @@ async function runGeneration() {
   state.pipeline = new Pipeline({
     provider: state.settings.provider,
     apiKey: state.settings.apiKey,
+    aihordeApiKey: state.settings.aihordeApiKey,
     model: state.settings.modelName,
     throttleMs: state.settings.throttleMs,
     refMaxDim: state.settings.refMaxDim,
@@ -412,6 +418,11 @@ async function runGeneration() {
         markCellError(event.label, event.message);
       } else if (event.type === "retry") {
         logProgress(`retry ${event.label} (#${event.attempt}, wait ${event.waitMs}ms): ${event.message}`);
+      } else if (event.type === "polling") {
+        const queue = event.queuePosition ?? "?";
+        const wait = event.waitTime ?? "?";
+        const phase = event.processing ? "rendering" : `queue #${queue}, ~${wait}s`;
+        els.progressStatus.textContent = `${event.completed} / ${event.total} - ${event.label}: ${phase}`;
       } else if (event.type === "cached") {
         logProgress(`cache hit ${event.label}`, "ok");
       } else if (event.type === "done") {

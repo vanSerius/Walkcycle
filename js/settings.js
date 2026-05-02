@@ -3,6 +3,7 @@ const STORAGE_KEY = "walkcycle.settings.v1";
 const DEFAULTS = {
   provider: "gemini-direct",
   apiKey: "",
+  aihordeApiKey: "",
   modelName: "gemini-2.5-flash-image",
   throttleMs: 6500,
   refMaxDim: 384,
