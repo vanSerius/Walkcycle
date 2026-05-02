@@ -1,5 +1,6 @@
 import { loadSettings, saveSettings } from "./settings.js";
 import { Pipeline, estimateCalls } from "./pipeline.js";
+import { uploadHash, cacheCountForUpload, cacheClearForUpload } from "./cache.js";
 import { DIRECTIONS, ANIMATIONS } from "./prompts.js";
 import { splitFilmstrip, processReferenceImage } from "./frame-splitter.js";
 import { composeSheet, canvasToBlob, downloadBlob } from "./sprite-sheet.js";
@@ -14,6 +15,9 @@ const els = {
   colorKey: document.getElementById("color-key"),
   skipReferenceStage: document.getElementById("skip-reference-stage"),
   callEstimate: document.getElementById("call-estimate"),
+  cacheStatus: document.getElementById("cache-status"),
+  cacheStatusText: document.getElementById("cache-status-text"),
+  cacheClear: document.getElementById("cache-clear"),
   animToggles: document.querySelectorAll('.anim-toggles input[data-anim]'),
   generateBtn: document.getElementById("generate-btn"),
   progressPanel: document.getElementById("progress-panel"),
@@ -41,11 +45,27 @@ const els = {
 
 const state = {
   uploadDataUrl: null,
+  uploadHash: null,
   pipeline: null,
   references: {},
   filmstrips: {},
   settings: loadSettings(),
 };
+
+async function refreshCacheStatus() {
+  if (!state.uploadHash) {
+    els.cacheStatus.hidden = true;
+    return;
+  }
+  const n = cacheCountForUpload(state.uploadHash);
+  if (n === 0) {
+    els.cacheStatus.hidden = true;
+    return;
+  }
+  els.cacheStatus.hidden = false;
+  els.cacheStatusText.textContent = `${n} image${n === 1 ? "" : "s"} cached for this upload — will be reused, no API calls needed.`;
+  els.cacheStatusText.style.color = "var(--good)";
+}
 
 function getAnimationKeys() {
   return Array.from(els.animToggles)
@@ -116,10 +136,12 @@ async function readFileAsDataUrl(file) {
 async function handleFile(file) {
   if (!file || !file.type.startsWith("image/")) return;
   state.uploadDataUrl = await readFileAsDataUrl(file);
+  state.uploadHash = await uploadHash(state.uploadDataUrl);
   els.uploadPreview.src = state.uploadDataUrl;
   els.uploadPreview.hidden = false;
   els.dropzoneEmpty.hidden = true;
   setGenerateEnabled();
+  await refreshCacheStatus();
 }
 
 function setupDropzone() {
@@ -390,8 +412,11 @@ async function runGeneration() {
         markCellError(event.label, event.message);
       } else if (event.type === "retry") {
         logProgress(`retry ${event.label} (#${event.attempt}, wait ${event.waitMs}ms): ${event.message}`);
+      } else if (event.type === "cached") {
+        logProgress(`cache hit ${event.label}`, "ok");
       } else if (event.type === "done") {
         els.progressStatus.textContent = "Done.";
+        refreshCacheStatus();
       }
     },
   });
@@ -404,6 +429,15 @@ async function runGeneration() {
   } finally {
     els.generateBtn.disabled = false;
   }
+}
+
+function setupCacheControls() {
+  els.cacheClear.addEventListener("click", async () => {
+    if (!state.uploadHash) return;
+    const n = cacheClearForUpload(state.uploadHash);
+    await refreshCacheStatus();
+    logProgress(`Cleared ${n} cached image${n === 1 ? "" : "s"}.`);
+  });
 }
 
 function setupExport() {
@@ -424,6 +458,7 @@ function init() {
   setupDropzone();
   setupSettings();
   setupOptions();
+  setupCacheControls();
   setupExport();
   els.generateBtn.addEventListener("click", runGeneration);
   setGenerateEnabled();

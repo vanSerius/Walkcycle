@@ -2,6 +2,7 @@ import { DIRECTIONS, ANIMATIONS, referencePosePrompt, filmstripPrompt } from "./
 import { generateImage as geminiGenerate, GeminiError } from "./gemini.js";
 import { generateImage as puterGenerate, PuterError } from "./puter.js";
 import { downsampleDataUrl } from "./pixel-utils.js";
+import { uploadHash, cacheGet, cacheSet } from "./cache.js";
 
 const MAX_RETRIES = 2;
 
@@ -45,11 +46,22 @@ export class Pipeline {
     this.lastCallAt = Date.now();
   }
 
-  async _call(prompt, referenceImages = [], { label }) {
+  async _call(prompt, referenceImages = [], { label, bypassCache = false }) {
     if (this.cancelled) throw new Error("Cancelled");
+
+    if (!bypassCache && this.uploadHashId) {
+      const cached = cacheGet(this.uploadHashId, label);
+      if (cached) {
+        this._emit("cached", { label });
+        return cached;
+      }
+    }
+
     if (this.dryRun) {
       await sleep(120);
-      return placeholderDataUrl(label);
+      const out = placeholderDataUrl(label);
+      if (this.uploadHashId) cacheSet(this.uploadHashId, label, out);
+      return out;
     }
     const slimRefs = await Promise.all(
       referenceImages.map((r) => downsampleDataUrl(r, this.refMaxDim))
@@ -58,10 +70,11 @@ export class Pipeline {
     let attempt = 0;
     while (true) {
       try {
-        if (this.provider === "puter") {
-          return await puterGenerate({ model: this.model, prompt, referenceImages: slimRefs });
-        }
-        return await geminiGenerate({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });
+        const out = this.provider === "puter"
+          ? await puterGenerate({ model: this.model, prompt, referenceImages: slimRefs })
+          : await geminiGenerate({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });
+        if (this.uploadHashId) cacheSet(this.uploadHashId, label, out);
+        return out;
       } catch (err) {
         const retriable = (err instanceof GeminiError && err.retriable) || (err instanceof PuterError && err.retriable);
         if (!retriable || attempt >= MAX_RETRIES) throw err;
@@ -74,7 +87,8 @@ export class Pipeline {
   }
 
   async run(uploadDataUrl) {
-    this._emit("start", {});
+    this.uploadHashId = await uploadHash(uploadDataUrl);
+    this._emit("start", { uploadHash: this.uploadHashId });
 
     if (!this.skipReferenceStage) {
       for (const direction of DIRECTIONS) {
@@ -124,11 +138,12 @@ export class Pipeline {
   }
 
   async regenerate({ direction, animation, uploadDataUrl }) {
+    if (!this.uploadHashId) this.uploadHashId = await uploadHash(uploadDataUrl);
     const dir = DIRECTIONS.find((d) => d.key === direction);
     if (!dir) throw new Error(`Unknown direction ${direction}`);
 
     if (animation === "reference") {
-      const out = await this._call(referencePosePrompt(dir), [uploadDataUrl], { label: `ref:${direction}` });
+      const out = await this._call(referencePosePrompt(dir), [uploadDataUrl], { label: `ref:${direction}`, bypassCache: true });
       this.references[direction] = out;
       return { kind: "reference", direction, dataUrl: out };
     }
@@ -136,7 +151,7 @@ export class Pipeline {
     const anim = ANIMATIONS[animation];
     if (!anim) throw new Error(`Unknown animation ${animation}`);
     const ref = this.references[direction] ?? uploadDataUrl;
-    const out = await this._call(filmstripPrompt(dir, anim, this.frameSize), [ref], { label: `${direction}:${animation}` });
+    const out = await this._call(filmstripPrompt(dir, anim, this.frameSize), [ref], { label: `${direction}:${animation}`, bypassCache: true });
     if (!this.filmstrips[direction]) this.filmstrips[direction] = {};
     this.filmstrips[direction][animation] = out;
     return { kind: "filmstrip", direction, animation, dataUrl: out };
