@@ -2,6 +2,10 @@ const HORDE_BASE = "https://stablehorde.net/api/v2";
 const CLIENT_AGENT = "WalkcycleSpriteSheet:1.0:github.com/vanSerius/Walkcycle";
 const POLL_INTERVAL_MS = 4000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let modelsCache = null;
+let modelsCachedAt = 0;
 
 export class HordeError extends Error {
   constructor(message, { status, retriable } = {}) {
@@ -105,6 +109,40 @@ async function urlToDataUrl(url) {
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
+export async function getActiveModels() {
+  if (modelsCache && Date.now() - modelsCachedAt < MODELS_CACHE_TTL_MS) {
+    return modelsCache;
+  }
+  const res = await fetch(`${HORDE_BASE}/status/models?type=image`, {
+    headers: { "Client-Agent": CLIENT_AGENT },
+  });
+  if (!res.ok) return [];
+  const list = await res.json();
+  list.sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+  modelsCache = list;
+  modelsCachedAt = Date.now();
+  return list;
+}
+
+function isLikelyGeminiModel(name) {
+  return !name || /gemini|nano-?banana|flash-image|imagen/i.test(name);
+}
+
+async function pickModel(requested) {
+  const active = await getActiveModels();
+  if (!active.length) return requested || "stable_diffusion";
+
+  if (!isLikelyGeminiModel(requested)) {
+    const exact = active.find((m) => m.name.toLowerCase() === requested.toLowerCase());
+    if (exact) return { picked: exact.name, fallback: false };
+    const partial = active.find((m) => m.name.toLowerCase().includes(requested.toLowerCase()));
+    if (partial) return { picked: partial.name, fallback: false };
+  }
+
+  const top = active[0];
+  return { picked: top.name, fallback: true, reason: requested };
+}
+
 export async function generateImage({
   apiKey,
   model = "stable_diffusion",
@@ -113,10 +151,17 @@ export async function generateImage({
   width = 512,
   height = 512,
   onPoll,
+  onInfo,
 }) {
   const sourceImage = referenceImages.length > 0 ? dataUrlToBase64(referenceImages[0]) : null;
 
-  const submitResp = await submit({ apiKey, prompt, sourceImage, model, width, height });
+  const choice = await pickModel(model);
+  const usedModel = typeof choice === "string" ? choice : choice.picked;
+  if (typeof choice !== "string" && choice.fallback && onInfo) {
+    onInfo({ message: `Model "${choice.reason}" not available on AI Horde — falling back to "${choice.picked}".` });
+  }
+
+  const submitResp = await submit({ apiKey, prompt, sourceImage, model: usedModel, width, height });
   const id = submitResp.id;
   if (!id) throw new HordeError(`AI Horde returned no job id: ${JSON.stringify(submitResp).slice(0, 200)}`);
 

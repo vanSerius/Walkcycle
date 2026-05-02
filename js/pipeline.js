@@ -84,6 +84,7 @@ export class Pipeline {
             width: 512,
             height: 512,
             onPoll: (info) => this._emit("polling", { label, ...info }),
+            onInfo: (info) => this._emit("info", { label, ...info }),
           });
         } else {
           out = await geminiGenerate({ apiKey: this.apiKey, model: this.model, prompt, referenceImages: slimRefs });

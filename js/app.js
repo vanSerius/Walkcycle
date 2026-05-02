@@ -423,6 +423,8 @@ async function runGeneration() {
         const wait = event.waitTime ?? "?";
         const phase = event.processing ? "rendering" : `queue #${queue}, ~${wait}s`;
         els.progressStatus.textContent = `${event.completed} / ${event.total} - ${event.label}: ${phase}`;
+      } else if (event.type === "info") {
+        logProgress(`info ${event.label}: ${event.message}`);
       } else if (event.type === "cached") {
         logProgress(`cache hit ${event.label}`, "ok");
       } else if (event.type === "done") {
